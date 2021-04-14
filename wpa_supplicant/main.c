@@ -17,6 +17,9 @@
 #include "driver_i.h"
 #include "p2p_supplicant.h"
 
+#ifdef WIFI_VENDOR_COMMON
+#include "wifi_hardware_info.h"
+#endif
 
 static void usage(void)
 {
@@ -199,9 +202,51 @@ int main(int argc, char *argv[])
 
 	wpa_supplicant_fd_workaround(1);
 
+#ifdef WIFI_VENDOR_COMMON
+        int argc_custom = 1;
+        char *argv_custom[64] = {NULL};
+        const char *supplicant_para = NULL;
+
+        if(argv[0]) {
+            argv_custom[0] = strdup(argv[0]);
+        }
+        if(argv[1] && strcmp(argv[1], "p2p_supported=false") == 0) {
+            supplicant_para = get_supplicant_para(0);
+        } else {
+            supplicant_para = get_supplicant_para(1);
+        }
+        if(supplicant_para) {
+            char argv_temp[126] = {'\0'};
+            int index = 0;
+            for(; *supplicant_para; supplicant_para++) {
+                if(*supplicant_para == ' ') {
+                    argv_custom[argc_custom] = strdup(argv_temp);
+                    argc_custom++;
+                    index = 0;
+                    memset(argv_temp, 0, sizeof(argv_temp));
+                    if(argc_custom >= 64) {
+                        break;
+                    }
+                } else {
+                    if(index < 125) {
+                        argv_temp[index++] = *supplicant_para;
+                    }
+                }
+            }
+            if(index > 0 && argc_custom < 64) {
+                argv_custom[argc_custom] = strdup(argv_temp);
+                argc_custom++;
+            }
+        }
+#endif
 	for (;;) {
+#ifdef WIFI_VENDOR_COMMON
+		c = getopt(argc_custom, argv_custom,
+			   "b:Bc:C:D:de:f:g:G:hi:I:KLm:No:O:p:P:qsTtuvW");
+#else
 		c = getopt(argc, argv,
-			   "b:Bc:C:D:de:f:g:G:hi:I:KLMm:No:O:p:P:qsTtuvW");
+			   "b:Bc:C:D:de:f:g:G:hi:I:KLm:No:O:p:P:qsTtuvW");
+#endif
 		if (c < 0)
 			break;
 		switch (c) {
@@ -396,6 +441,13 @@ int main(int argc, char *argv[])
 	fst_global_deinit();
 
 out:
+#ifdef WIFI_VENDOR_COMMON
+        for(i = 0; i < argc_custom; i++) {
+            if(argv_custom[i]) {
+                os_free(argv_custom[i]);
+            }
+        }
+#endif
 	wpa_supplicant_fd_workaround(0);
 	os_free(ifaces);
 #ifdef CONFIG_MATCH_IFACE

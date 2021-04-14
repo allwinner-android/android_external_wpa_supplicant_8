@@ -1587,6 +1587,11 @@ else
 LOCAL_STATIC_LIBRARIES += libnl_2
 endif
 endif
+ifeq ($(BOARD_WIFI_VENDOR), common)
+L_CFLAGS += -DWIFI_VENDOR_COMMON
+LOCAL_STATIC_LIBRARIES += libwifi_hardware_info
+INCLUDES += hardware/libhardware_legacy/include/hardware_legacy
+endif
 LOCAL_CFLAGS := $(L_CFLAGS)
 LOCAL_SRC_FILES := $(OBJS)
 LOCAL_C_INCLUDES := $(INCLUDES)

@@ -51,6 +51,9 @@
 #include "offchannel.h"
 #include "drivers/driver.h"
 #include "mesh.h"
+#ifdef WIFI_VENDOR_COMMON
+#include "wifi_hardware_info.h"
+#endif
 
 static int wpa_supplicant_global_iface_list(struct wpa_global *global,
 					    char *buf, int len);
@@ -5027,6 +5030,10 @@ static int p2p_ctrl_connect(struct wpa_supplicant *wpa_s, char *cmd,
 		if (go_intent < 0 || go_intent > 15)
 			return -1;
 	}
+#ifdef WIFI_VENDOR_COMMON
+	if (strcmp(get_wifi_vendor_name(), "xradio") == 0)
+		go_intent = 14;
+#endif
 
 	pos2 = os_strstr(pos, " freq=");
 	if (pos2) {
@@ -8668,11 +8675,19 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 		if (wpas_p2p_group_remove(wpa_s, buf + 17))
 			reply_len = -1;
 	} else if (os_strcmp(buf, "P2P_GROUP_ADD") == 0) {
-		if (p2p_ctrl_group_add(wpa_s, ""))
+#ifdef WIFI_VENDOR_COMMON
+		if (strcmp(get_wifi_vendor_name(), "xradio") == 0)
 			reply_len = -1;
+		else if (p2p_ctrl_group_add(wpa_s, ""))
+			reply_len = -1;
+#endif
 	} else if (os_strncmp(buf, "P2P_GROUP_ADD ", 14) == 0) {
-		if (p2p_ctrl_group_add(wpa_s, buf + 14))
+#ifdef WIFI_VENDOR_COMMON
+		if (strcmp(get_wifi_vendor_name(), "xradio") == 0)
 			reply_len = -1;
+		else if (p2p_ctrl_group_add(wpa_s, buf + 14))
+			reply_len = -1;
+#endif
 	} else if (os_strncmp(buf, "P2P_PROV_DISC ", 14) == 0) {
 		if (p2p_ctrl_prov_disc(wpa_s, buf + 14))
 			reply_len = -1;

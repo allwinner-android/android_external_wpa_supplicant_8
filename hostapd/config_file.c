@@ -21,6 +21,9 @@
 #include "ap/ap_config.h"
 #include "config_file.h"
 
+#ifdef WIFI_VENDOR_COMMON
+#include "wifi_hardware_info.h"
+#endif
 
 #ifndef CONFIG_NO_RADIUS
 #ifdef EAP_SERVER
@@ -3565,6 +3568,10 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 		*pos = '\0';
 		pos++;
 		errors += hostapd_config_fill(conf, bss, buf, pos, line);
+#ifdef WIFI_VENDOR_COMMON
+		if(strcmp(get_wifi_vendor_name(), "xradio") == 0)
+			bss->wmm_uapsd = 1;
+#endif
 	}
 
 	fclose(f);
