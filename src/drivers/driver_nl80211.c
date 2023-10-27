@@ -10434,6 +10434,27 @@ static int nl80211_add_sta_node(void *priv, const u8 *addr, u16 auth_alg)
 
 #endif /* CONFIG_DRIVER_NL80211_QCA */
 
+#ifndef CONFIG_DRIVER_NL80211_BRCM
+
+#define OUI_GOOGLE  0x001A11
+
+enum google_nl80211_vendor_subcmds {
+	GOOGLE_VENDOR_SUBCMD_UNSPEC  = 0,
+	GOOGLE_VENDOR_SUBCMD_SET_PMK = 4,
+	GOOGLE_VENDOR_SUBCMD_SET_MAC = 6,
+	GOOGLE_VENDOR_SCMD_ACS       = 9,
+	GOOGLE_VENDOR_SCMD_MAX       = 10
+};
+
+enum google_wlan_vendor_attr {
+	GOOGLE_ATTR_DRIVER_CMD        = 0,
+	GOOGLE_ATTR_DRIVER_KEY_PMK    = 1,
+	GOOGLE_ATTR_DRIVER_MAC_ADDR   = 3,
+	GOOGLE_ATTR_DRIVER_AFTER_LAST = 5,
+	GOOGLE_ATTR_DRIVER_MAX        = GOOGLE_ATTR_DRIVER_AFTER_LAST - 1,
+};
+
+#endif
 
 static int nl80211_set_mac_addr(void *priv, const u8 *addr)
 {
@@ -10476,7 +10497,34 @@ static int nl80211_set_mac_addr(void *priv, const u8 *addr)
 		memcpy(bss->addr, addr, ETH_ALEN);
 		return ret;
 #else
-		return -ENOTSUP;
+		struct nl_msg *msg;
+		struct nlattr *params;
+		int ret;
+
+		if (!addr ) {
+			addr = drv->global->p2p_perm_addr;
+		}
+
+		if (!(msg = nl80211_cmd_msg(bss, 0, NL80211_CMD_VENDOR)) ||
+			nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_GOOGLE) ||
+			nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD,
+				GOOGLE_VENDOR_SUBCMD_SET_MAC) ||
+			!(params = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA)) ||
+			nla_put(msg, GOOGLE_ATTR_DRIVER_MAC_ADDR, ETH_ALEN, addr)) {
+			wpa_printf(MSG_ERROR, "failed to put p2p randmac");
+			nl80211_nlmsg_clear(msg);
+			nlmsg_free(msg);
+			return -ENOBUFS;
+		}
+		nla_nest_end(msg, params);
+
+		ret = send_and_recv_msgs(drv, msg, NULL, (void *) -1, NULL, NULL);
+		if (ret) {
+			wpa_printf(MSG_ERROR, "nl80211: p2p set macaddr failed: ret=%d (%s)",
+				ret, strerror(-ret));
+		}
+		memcpy(bss->addr, addr, ETH_ALEN);
+		return ret;
 #endif /* CONFIG_DRIVER_NL80211_BRCM */
 	}
 	if (!addr)
